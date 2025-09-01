@@ -1,0 +1,26 @@
+# Web framework
+fastapi==0.111.0
+uvicorn[standard]==0.30.1
+
+# Database
+sqlalchemy==2.0.30
+psycopg[binary]==3.1.18   # For Postgres later; safe to have in deps
+
+# Data validation
+pydantic==2.8.2
+
+# HTTP client
+httpx==0.27.0
+
+# Logging
+structlog==24.1.0
+
+# Env management
+python-dotenv==1.0.1
+
+# (optional) Migrations if you have time
+alembic==1.13.2
+
+
+# Testing
+pytest==8.2.0
