@@ -29,6 +29,9 @@ class Lead(Base):
     external_task_id = Column(String(64), nullable=True)
     external_subtask_ids_json = Column("external_subtask_ids", Text, nullable=True)
 
+    external_task_url = Column(Text, nullable=True)
+    status_api = Column(Integer, nullable=True)
+
     # Convenience property: expose intereses_servicios as a Python list
     @property
     def intereses_servicios(self) -> list[str]:

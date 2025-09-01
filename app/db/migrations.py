@@ -35,6 +35,8 @@ def run_startup_migrations(engine: Engine) -> None:
       - Adds missing columns to `leads`:
           * external_task_id VARCHAR(64)
           * external_subtask_ids TEXT
+          * external_task_url TEXT
+          * status_api INTEGER
     Safe to run on every startup. No destructive changes.
     """
     backend = engine.url.get_backend_name()
@@ -55,6 +57,12 @@ def run_startup_migrations(engine: Engine) -> None:
 
         if "external_subtask_ids" not in cols:
             _add_column_sqlite(engine, "leads", "external_subtask_ids TEXT")
+        
+        if "external_task_url" not in cols:
+            _add_column_sqlite(engine, "leads", "external_task_url TEXT")
+
+        if "status_api" not in cols:
+            _add_column_sqlite(engine, "leads", "status_api INTEGER")
 
         log.info("db_migration_done", table="leads")
 
