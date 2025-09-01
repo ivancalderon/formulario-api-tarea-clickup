@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone, timedelta
 import hashlib
-from typing import Tuple
+from typing import Tuple, Optional
 
 import structlog
 from sqlalchemy import select
@@ -24,7 +24,7 @@ def _generate_dedupe_key(data: LeadCreate) -> str:
     """
     correo = str(data.correo).strip().lower()
     nombre = data.nombre.strip()
-    yyyymmdd = datetime.utcnow().strftime("%Y%m%d")
+    yyyymmdd = datetime.now(timezone.utc).strftime("%Y%m%d")
     raw = f"{correo}|{yyyymmdd}|{nombre}"
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
@@ -172,3 +172,17 @@ def _maybe_create_clickup_items(lead: Lead, data: LeadCreate) -> None:
     except Exception as e:
         # Catch-all to ensure webhook continues even if ClickUp payload changes
         log.exception("tm_unexpected_error", error=str(e))
+
+def update_status_api(db: Session, lead: Lead, status_code: Optional[int]) -> None:
+    """
+    Persist the HTTP status code we returned from the webhook handler.
+    Safe to call for both newly created and existing leads.
+    """
+    if status_code is None:
+        return
+    sess = object_session(lead) or db
+    lead.status_api = int(status_code)
+    sess.add(lead)
+    sess.commit()
+    sess.refresh(lead)
+    log.info("lead_status_api_persisted", lead_id=lead.id, status_api=lead.status_api)

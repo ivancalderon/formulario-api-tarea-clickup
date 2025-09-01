@@ -48,6 +48,19 @@ def receive_webhook(
 
     lead_obj, created = lead_service.create_or_get_lead(db=db, data=normalized)
 
+    # Decide HTTP status, set it on the Response, then persist it on the lead
+    if created:
+        response.status_code = status.HTTP_201_CREATED
+    else:
+        response.status_code = status.HTTP_200_OK
+
+    # Persist the code we actually returned
+    try:
+        lead_service.update_status_api(db=db, lead=lead_obj, status_code=int(response.status_code))
+    except Exception as e:
+        # Don't block the response if this persistence fails
+        log.exception("persist_status_api_failed", lead_id=lead_obj.id, error=str(e))
+
     # Pydantic v2 + FastAPI encoder will handle datetimes if we return the model
     resp = LeadResponse.model_validate(lead_obj)
     elapsed_ms = int((time.perf_counter() - t0) * 1000)
