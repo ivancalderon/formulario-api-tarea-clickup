@@ -14,6 +14,7 @@ from app.schemas.lead import LeadCreate
 from app.config import get_settings
 from app.integrations.clickup_client import ClickUpClient, ClickUpError
 
+
 log = structlog.get_logger()
 
 
@@ -44,6 +45,25 @@ def _subtasks_from_env() -> list[str]:
             "Agendar reunión inicial",
         ]
     return [part.strip() for part in raw.split(";") if part.strip()]
+
+def _extract_task_url(task_payload: dict) -> Optional[str]:
+    """
+    ClickUp's create task response typically includes a URL.
+    Be tolerant across payload variants.
+    """
+    for key in ("url", "task_url", "html_url", "app_url", "link"):
+        val = task_payload.get(key)
+        if isinstance(val, str) and val.strip():
+            return val.strip()
+    # Some clients may nest it
+    nested = task_payload.get("data") or task_payload.get("task") or {}
+    if isinstance(nested, dict):
+        for key in ("url", "task_url", "html_url", "app_url", "link"):
+            val = nested.get(key)
+            if isinstance(val, str) and val.strip():
+                return val.strip()
+    return None
+
 
 
 def create_or_get_lead(db: Session, data: LeadCreate) -> Tuple[Lead, bool]:
@@ -111,6 +131,10 @@ def _maybe_create_clickup_items(lead: Lead, data: LeadCreate) -> None:
     Create a parent task and subtasks in ClickUp.
     - If ClickUp is not configured, skip and log.
     - If API calls fail after retries, log an error; do not raise (lead already stored).
+    Additionally, persist:
+      * lead.external_task_id
+      * lead.external_task_url
+      * lead.external_subtask_ids
     """
     client = ClickUpClient.from_settings()
     if not client.is_configured():
@@ -136,6 +160,7 @@ def _maybe_create_clickup_items(lead: Lead, data: LeadCreate) -> None:
             return
 
         parent_id = parent.get("id")
+        task_url = _extract_task_url(parent or {})
         log.info("tm_task_created", parent_id=parent_id)
 
         # Subtasks
@@ -152,6 +177,7 @@ def _maybe_create_clickup_items(lead: Lead, data: LeadCreate) -> None:
             sid = str(sub.get("id") or "")
             sub_ids.append(sid)
             log.info("tm_subtask_created", parent_id=parent_id, subtask_id=sub.get("id"), title=title)
+            
     
         # --- Persist IDs on the same Lead row ---
         sess = object_session(lead)
@@ -160,7 +186,9 @@ def _maybe_create_clickup_items(lead: Lead, data: LeadCreate) -> None:
             return
 
         lead.external_task_id = parent_id
+        lead.external_task_url = task_url
         lead.external_subtask_ids = sub_ids  # property writes JSON under the hood
+        log.info("lead_task_url_persisted", lead_id=lead.id, task_url=lead.external_task_url)
 
         sess.add(lead)
         sess.commit()

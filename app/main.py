@@ -14,7 +14,6 @@ from app.db import models
 
 
 # Configure logging at import time (before app starts handling requests)
-configure_logging()
 log = structlog.get_logger()
 
 class RequestContextLogMiddleware(BaseHTTPMiddleware):

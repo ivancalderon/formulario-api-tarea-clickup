@@ -9,6 +9,7 @@ from app.db.session import SessionLocal
 from app.schemas.lead import LeadCreate, LeadResponse
 from app.services import lead_service
 
+
 router = APIRouter()
 log = structlog.get_logger()
 settings = get_settings()
@@ -47,6 +48,7 @@ def receive_webhook(
     )
 
     lead_obj, created = lead_service.create_or_get_lead(db=db, data=normalized)
+    log.info("webhook_payload_normalized", correo=normalized.correo, intereses=normalized.intereses_servicios)
 
     # Decide HTTP status, set it on the Response, then persist it on the lead
     if created:
@@ -67,9 +69,9 @@ def receive_webhook(
 
     if created:
         response.status_code = status.HTTP_201_CREATED
-        log.info("lead_persisted", lead_id=lead_obj.id, elapsed_ms=elapsed_ms)
+        log.info("lead_persisted", lead_id=lead_obj.id, status_api=response.status_code, elapsed_ms=elapsed_ms)
     else:
         response.status_code = status.HTTP_200_OK
-        log.info("lead_existing", lead_id=lead_obj.id, elapsed_ms=elapsed_ms)
+        log.info("lead_existing", lead_id=lead_obj.id, status_api=response.status_code, elapsed_ms=elapsed_ms)
 
     return resp
