@@ -126,7 +126,7 @@ def _maybe_create_clickup_items(lead: Lead, data: LeadCreate) -> None:
         f"**Intereses:** {intereses}\n"
         f"**Mensaje:** {lead.mensaje or '-'}\n"
     )
-    task_name = f"Nuevo lead: {lead.nombre}"
+    task_name = f"Nuevo lead: {lead.nombre} ({lead.correo})"
 
     try:
         parent = client.create_task(name=task_name, description=descripcion)
